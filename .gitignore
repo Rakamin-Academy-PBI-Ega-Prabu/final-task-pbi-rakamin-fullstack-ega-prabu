@@ -1,3 +1,2 @@
 .env
-userapp.exe
-userapp.exe~
+*.exe
