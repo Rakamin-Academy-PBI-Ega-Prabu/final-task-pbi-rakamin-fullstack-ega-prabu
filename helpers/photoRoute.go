@@ -1,9 +1,8 @@
 package helpers
 
 import (
-	"fmt"
+	"errors"
 	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
 	"userapp/initializers"
@@ -13,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetPhotoAssociation(c *gin.Context) (*gorm.Association, bool) {
+func GetPhotoAssociation(c *gin.Context) (*gorm.Association, error) {
 	u, _ := c.Get("user")
 
 	user := u.(models.User)
@@ -21,27 +20,21 @@ func GetPhotoAssociation(c *gin.Context) (*gorm.Association, bool) {
 	assoc := initializers.DB.Model(&user).Association("Photos")
 
 	if assoc.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Can not retrive photos",
-		})
-
-		return nil, false
+		return nil, assoc.Error
 	}
 
-	return assoc, true
+	return assoc, nil
 }
 
-func GetPhoto(c *gin.Context) (models.Photo, bool) {
+func GetPhoto(c *gin.Context) (*models.Photo, error) {
 	var uri struct {
 		ID string `uri:"photo_id" binding:"required"`
 	}
 
-	if c.ShouldBindUri(&uri) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read Photo ID",
-		})
+	err := c.ShouldBindUri(&uri)
 
-		return models.Photo{}, false
+	if err != nil {
+		return nil, errors.New("photo not found")
 	}
 
 	u, _ := c.Get("user")
@@ -50,32 +43,25 @@ func GetPhoto(c *gin.Context) (models.Photo, bool) {
 
 	var photo models.Photo
 
-	initializers.DB.Debug().Model(&user).Where("ID = ?", uri.ID).Association("Photos").Find(&photo)
+	initializers.DB.Model(&user).Where("ID = ?", uri.ID).Association("Photos").Find(&photo)
 
 	if photo.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Photo not found",
-		})
-
-		return models.Photo{}, false
+		return nil, errors.New("photo not found")
 	}
 
-	return photo, true
+	return &photo, nil
 }
 
-func GetFile(c *gin.Context) (*multipart.FileHeader, bool) {
+func GetFile(c *gin.Context) (*multipart.FileHeader, error) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Get Form File Error: %s", err.Error()),
-		})
-		return nil, false
+		return nil, errors.New("get form file error: " + err.Error())
 	}
 
-	return file, true
+	return file, nil
 }
 
-func GetPhotoUrl(c *gin.Context, file *multipart.FileHeader) (string, bool) {
+func GetPhotoUrl(c *gin.Context, file *multipart.FileHeader) (string, error) {
 	user, _ := c.Get("user")
 
 	userFilePath := filepath.Clean(GetUserFilePath(user.(models.User).Username))
@@ -83,14 +69,10 @@ func GetPhotoUrl(c *gin.Context, file *multipart.FileHeader) (string, bool) {
 	// Chech if directory can be created. If there's no directory, create one
 	errDir := os.MkdirAll(userFilePath, 0750)
 	if errDir != nil && !os.IsExist(errDir) {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Can not make Directory for User: %s", errDir.Error()),
-		})
-
-		return "", false
+		return "", errors.New("Can not make Directory for User: " + errDir.Error())
 	}
 
 	photoUrl := filepath.Join(userFilePath, SetFileName(file.Filename))
 
-	return photoUrl, true
+	return photoUrl, nil
 }

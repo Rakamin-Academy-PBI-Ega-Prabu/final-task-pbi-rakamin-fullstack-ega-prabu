@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"userapp/helpers"
@@ -12,11 +11,11 @@ import (
 )
 
 func PhotoIndex(c *gin.Context) {
-	assoc, status := helpers.GetPhotoAssociation(c)
+	assoc, err := helpers.GetPhotoAssociation(c)
 
-	if !status {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Can not read photos",
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
 		})
 
 		return
@@ -37,11 +36,11 @@ func PhotoIndex(c *gin.Context) {
 }
 
 func PhotoCreate(c *gin.Context) {
-	assoc, status := helpers.GetPhotoAssociation(c)
+	assoc, errAssoc := helpers.GetPhotoAssociation(c)
 
-	if !status {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Can not read photos",
+	if errAssoc != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": errAssoc.Error(),
 		})
 
 		return
@@ -60,21 +59,21 @@ func PhotoCreate(c *gin.Context) {
 		return
 	}
 
-	file, statusFile := helpers.GetFile(c)
+	file, errFile := helpers.GetFile(c)
 
-	if !statusFile {
+	if errFile != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to get file",
+			"error": errFile.Error(),
 		})
 
 		return
 	}
 
-	photoUrl, statusUrl := helpers.GetPhotoUrl(c, file)
+	photoUrl, errUrl := helpers.GetPhotoUrl(c, file)
 
-	if !statusUrl {
+	if errUrl != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to get photo url",
+			"error": errUrl.Error(),
 		})
 
 		return
@@ -86,7 +85,7 @@ func PhotoCreate(c *gin.Context) {
 
 	if err := c.SaveUploadedFile(file, photoUrl); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("upload file err: %s", err.Error()),
+			"error": "upload file err: " + err.Error(),
 		})
 
 		return
@@ -96,27 +95,11 @@ func PhotoCreate(c *gin.Context) {
 }
 
 func PhotoGet(c *gin.Context) {
-	var uri struct {
-		ID string `uri:"photo_id" binding:"required"`
-	}
+	photo, err := helpers.GetPhoto(c)
 
-	if c.ShouldBindUri(&uri) != nil {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read Photo ID",
-		})
-
-		return
-	}
-
-	user, _ := c.Get("user")
-
-	var photo models.Photo
-
-	initializers.DB.Model(&user).Where("ID = ?", uri.ID).Association("Photos").Find(&photo)
-
-	if photo.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Photo not found",
+			"error": err.Error(),
 		})
 
 		return
@@ -126,12 +109,13 @@ func PhotoGet(c *gin.Context) {
 }
 
 func PhotoEdit(c *gin.Context) {
-	photo, status := helpers.GetPhoto(c)
+	photo, err := helpers.GetPhoto(c)
 
-	if !status {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Can not read photo",
+			"error": err.Error(),
 		})
+
 		return
 	}
 
@@ -156,32 +140,32 @@ func PhotoEdit(c *gin.Context) {
 }
 
 func PhotoChange(c *gin.Context) {
-	photo, status := helpers.GetPhoto(c)
+	photo, errPhoto := helpers.GetPhoto(c)
 
-	if !status || photo.ID == 0 {
+	if errPhoto != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Can not read photo",
-		})
-		return
-	}
-
-	file, statusFile := helpers.GetFile(c)
-
-	if !statusFile {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to get file",
+			"error": errPhoto.Error(),
 		})
 
 		return
 	}
 
-	photoUrl, statusUrl := helpers.GetPhotoUrl(c, file)
+	file, errFile := helpers.GetFile(c)
 
-	if !statusUrl {
+	if errFile != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to get photo url",
+			"error": errFile.Error(),
 		})
 
+		return
+	}
+
+	photoUrl, errUrl := helpers.GetPhotoUrl(c, file)
+
+	if errUrl != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": errUrl.Error(),
+		})
 		return
 	}
 
@@ -189,7 +173,7 @@ func PhotoChange(c *gin.Context) {
 
 	if err := c.SaveUploadedFile(file, photoUrl); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("upload file err: %s", err.Error()),
+			"error": "upload file err: " + err.Error(),
 		})
 		return
 	}
@@ -203,33 +187,19 @@ func PhotoChange(c *gin.Context) {
 }
 
 func PhotoDelete(c *gin.Context) {
-	var uri struct {
-		ID string `uri:"photo_id" binding:"required"`
-	}
+	photo, errPhoto := helpers.GetPhoto(c)
 
-	if c.ShouldBindUri(&uri) != nil {
+	if errPhoto != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read Photo ID",
-		})
-
-		return
-	}
-
-	user, _ := c.Get("user")
-
-	var photo models.Photo
-
-	initializers.DB.Model(&user).Where("ID = ?", uri.ID).Association("Photos").Find(&photo)
-
-	if photo.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Photo not found",
+			"error": errPhoto.Error(),
 		})
 
 		return
 	}
 
 	os.Rename(photo.PhotoUrl, photo.PhotoUrl+"(deleted)")
+
+	user, _ := c.Get("user")
 
 	initializers.DB.Model(&user).Association("Photos").Delete(photo)
 
