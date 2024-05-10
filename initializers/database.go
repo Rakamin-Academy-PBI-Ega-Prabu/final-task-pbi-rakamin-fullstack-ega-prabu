@@ -10,7 +10,6 @@ import (
 )
 
 var DB *gorm.DB
-var Current_User models.User
 
 func ConnectToDatabase() {
 	var err error
