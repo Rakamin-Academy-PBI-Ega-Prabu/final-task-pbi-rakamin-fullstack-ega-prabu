@@ -23,7 +23,7 @@ func main() {
 		userRoute.POST("/login", controllers.UserLogin)
 		userRoute.GET("/:user_id", controllers.UserGet)
 		userRoute.PUT("/:user_id/edit", controllers.UserEdit)
-		userRoute.POST("/:user_id/change-password", controllers.UserChangePassword)
+		userRoute.PUT("/:user_id/change-password", controllers.UserChangePassword)
 		userRoute.DELETE("/:user_id/delete", controllers.UserDelete)
 	}
 
