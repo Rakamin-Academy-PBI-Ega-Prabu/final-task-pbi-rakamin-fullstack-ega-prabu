@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"userapp/helpers"
 	"userapp/initializers"
 	"userapp/models"
 
@@ -26,6 +27,20 @@ func UserIndex(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, users)
+}
+
+func UserGet(c *gin.Context) {
+	user, err := helpers.GetUserFromUri(c)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
 }
 
 func UserSignUp(c *gin.Context) {
@@ -124,14 +139,13 @@ func UserLogin(c *gin.Context) {
 }
 
 func UserEdit(c *gin.Context) {
-	var uri struct {
-		ID string `uri:"user_id" binding:"required"`
-	}
+	user, err := helpers.GetUserFromUri(c)
 
-	if c.ShouldBindUri(&uri) != nil {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read User ID",
+			"error": err.Error(),
 		})
+
 		return
 	}
 
@@ -141,38 +155,31 @@ func UserEdit(c *gin.Context) {
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read User ID",
+			"error": "Failed to read body",
 		})
 		return
 	}
 
-	var user models.User
+	res := initializers.DB.Model(&user).Update("email", body.Email)
 
-	initializers.DB.First(&user, uri.ID)
-
-	if user.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "User Not Found",
+	if res.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email is already used",
 		})
 		return
 	}
 
-	initializers.DB.Model(&user).Update("email", body.Email)
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": user,
-	})
+	c.JSON(http.StatusOK, user)
 }
 
 func UserChangePassword(c *gin.Context) {
-	var uri struct {
-		ID string `uri:"user_id" binding:"required"`
-	}
+	user, errUser := helpers.GetUserFromUri(c)
 
-	if c.ShouldBindUri(&uri) != nil {
+	if errUser != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read User ID",
+			"error": errUser.Error(),
 		})
+
 		return
 	}
 
@@ -188,20 +195,9 @@ func UserChangePassword(c *gin.Context) {
 		return
 	}
 
-	var user models.User
+	errPass := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 
-	initializers.DB.First(&user, uri.ID)
-
-	if user.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "User Not Found",
-		})
-		return
-	}
-
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
-
-	if err != nil {
+	if errPass != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid password",
 		})
@@ -209,9 +205,9 @@ func UserChangePassword(c *gin.Context) {
 		return
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	hash, errComp := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
 
-	if err != nil {
+	if errComp != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to hash Password",
 		})
@@ -227,25 +223,13 @@ func UserChangePassword(c *gin.Context) {
 }
 
 func UserDelete(c *gin.Context) {
-	var uri struct {
-		ID string `uri:"user_id" binding:"required"`
-	}
+	user, err := helpers.GetUserFromUri(c)
 
-	if c.ShouldBindUri(&uri) != nil {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read User ID",
+			"error": err.Error(),
 		})
-		return
-	}
 
-	var user models.User
-
-	initializers.DB.First(&user, uri.ID)
-
-	if user.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "User Not Found",
-		})
 		return
 	}
 
@@ -253,13 +237,5 @@ func UserDelete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User Deleted",
-	})
-}
-
-func ValidateUser(c *gin.Context) {
-	user, _ := c.Get("user")
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": user,
 	})
 }
