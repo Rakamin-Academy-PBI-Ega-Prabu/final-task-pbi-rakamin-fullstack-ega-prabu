@@ -9,9 +9,7 @@ import (
 )
 
 func init() {
-	initializers.LoadEnvVariables()
-	initializers.ConnectToDatabase()
-	initializers.SyncDatabase()
+	initializers.InitializeApp()
 }
 
 func main() {
@@ -25,19 +23,22 @@ func main() {
 		userRoute.GET("/", controllers.UserIndex)
 		userRoute.POST("/register", controllers.UserSignUp)
 		userRoute.POST("/login", controllers.UserLogin)
-		userRoute.POST("/:user_id/edit", controllers.UserEdit)
-		userRoute.DELETE("/:user_id/delete", controllers.UserDelete)
+		userRoute.PUT("/:user_id/edit", controllers.UserEdit)
 		userRoute.POST("/:user_id/change-password", controllers.UserChangePassword)
+		userRoute.DELETE("/:user_id/delete", controllers.UserDelete)
+	}
 
-		// Photo Routes
-		photoRoute := r.Group("/photos")
+	// Photo Routes
+	photoRoute := r.Group("/photos")
 
-		photoRoute.Use(middleware.RequireAuth)
-		{
-			photoRoute.GET("/", controllers.PhotoIndex)
-			photoRoute.POST("/", controllers.PhotoCreate)
-
-		}
+	photoRoute.Use(middleware.RequireAuth)
+	{
+		photoRoute.GET("/", controllers.PhotoIndex)
+		photoRoute.POST("", controllers.PhotoCreate)
+		photoRoute.GET("/:photo_id", controllers.PhotoGet)
+		photoRoute.PUT("/:photo_id", controllers.PhotoEdit)
+		photoRoute.PUT("/:photo_id/change-photo", controllers.PhotoChange)
+		photoRoute.DELETE("/:photo_id", controllers.PhotoDelete)
 	}
 
 	r.Run()
