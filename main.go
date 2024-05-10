@@ -15,8 +15,6 @@ func init() {
 func main() {
 	r := gin.Default()
 
-	r.GET("/validate", middleware.RequireAuth, controllers.ValidateUser)
-
 	userRoute := r.Group("/users")
 	{
 		// User Routes
