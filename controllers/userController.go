@@ -8,6 +8,7 @@ import (
 	"userapp/initializers"
 	"userapp/models"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -45,9 +46,9 @@ func UserGet(c *gin.Context) {
 
 func UserSignUp(c *gin.Context) {
 	var body struct {
-		Username string
-		Password string
-		Email    string
+		Username string `valid:"stringlength(4|24)"`
+		Password string `valid:"stringlength(8|24)"`
+		Email    string `valid:"email"`
 	}
 
 	if c.Bind(&body) != nil {
@@ -55,6 +56,14 @@ func UserSignUp(c *gin.Context) {
 			"error": "Failed to read body",
 		})
 
+		return
+	}
+
+	_, errBody := govalidator.ValidateStruct(body)
+	if errBody != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "error: " + errBody.Error(),
+		})
 		return
 	}
 
@@ -85,8 +94,8 @@ func UserSignUp(c *gin.Context) {
 
 func UserLogin(c *gin.Context) {
 	var body struct {
-		Username string
-		Password string
+		Username string `valid:"type(string)"`
+		Password string `valid:"type(string)"`
 	}
 
 	if c.Bind(&body) != nil {
@@ -94,6 +103,14 @@ func UserLogin(c *gin.Context) {
 			"error": "Failed to read body",
 		})
 
+		return
+	}
+
+	_, errBody := govalidator.ValidateStruct(body)
+	if errBody != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "error: " + errBody.Error(),
+		})
 		return
 	}
 
@@ -150,12 +167,20 @@ func UserEdit(c *gin.Context) {
 	}
 
 	var body struct {
-		Email string `form:"email"`
+		Email string `valid:"email"`
 	}
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
+		})
+		return
+	}
+
+	_, errBody := govalidator.ValidateStruct(body)
+	if errBody != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "error: " + errBody.Error(),
 		})
 		return
 	}
@@ -184,13 +209,21 @@ func UserChangePassword(c *gin.Context) {
 	}
 
 	var body struct {
-		Password    string
-		NewPassword string
+		Password    string `valid:"type(string)"`
+		NewPassword string `valid:"type(string),stringlength(8|24)"`
 	}
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
+		})
+		return
+	}
+
+	_, errBody := govalidator.ValidateStruct(body)
+	if errBody != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "error: " + errBody.Error(),
 		})
 		return
 	}
@@ -217,9 +250,7 @@ func UserChangePassword(c *gin.Context) {
 
 	initializers.DB.Model(&user).Update("password", string(hash))
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": user,
-	})
+	c.JSON(http.StatusOK, user)
 }
 
 func UserDelete(c *gin.Context) {

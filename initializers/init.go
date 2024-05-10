@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"os"
 	"time"
+
+	"github.com/asaskevich/govalidator"
 )
 
 func InitializeApp() {
@@ -17,6 +19,9 @@ func InitializeApp() {
 		panic(errDir.Error())
 
 	}
+
+	// Set field required by default
+	govalidator.SetFieldsRequiredByDefault(true)
 
 	// Load .env varibles
 	LoadEnvVariables()
