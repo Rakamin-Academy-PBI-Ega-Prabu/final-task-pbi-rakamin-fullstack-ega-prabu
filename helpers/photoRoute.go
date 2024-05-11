@@ -58,6 +58,11 @@ func GetFile(c *gin.Context) (*multipart.FileHeader, error) {
 		return nil, errors.New("get form file error: " + err.Error())
 	}
 
+	errImage := IsFileImage(file)
+	if errImage != nil {
+		return nil, errImage
+	}
+
 	return file, nil
 }
 

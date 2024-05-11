@@ -1,7 +1,9 @@
 package helpers
 
 import (
+	"errors"
 	"fmt"
+	"mime/multipart"
 	"strings"
 	"userapp/initializers"
 )
@@ -12,18 +14,18 @@ func GetUserFilePath(userName string) string {
 	return path
 }
 
-func IsFileImage(FileHeader map[string]string) (bool, string) {
+func IsFileImage(file *multipart.FileHeader) error {
 	// Check Content-Type Header
-	contentType := strings.Split(FileHeader["Content-Type"], "/")
+	contentType := strings.Split(file.Header.Get("Content-Type"), "/")
 	if strings.Compare(contentType[0], "image") != 0 {
-		return false, ""
+		return errors.New("file must be an image type (jpg,jpeg,png)")
 	}
-	return true, contentType[1]
+	return nil
 }
 
 func GetFileExtension(fileName string) string {
 	ext := strings.Split(fileName, ".")
-	return ext[1]
+	return ext[len(ext)-1]
 }
 
 func SetFileName(fileName string) string {
