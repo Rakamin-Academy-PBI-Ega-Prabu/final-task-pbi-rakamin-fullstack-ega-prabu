@@ -8,7 +8,13 @@ import (
 	"userapp/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
+
+type PhotoBody struct {
+	Title   string `form:"title" validate:"required,max=100"`
+	Caption string `form:"caption" validate:"required,max=255"`
+}
 
 func PhotoIndex(c *gin.Context) {
 	assoc, err := helpers.GetPhotoAssociation(c)
@@ -46,14 +52,24 @@ func PhotoCreate(c *gin.Context) {
 		return
 	}
 
-	var body struct {
-		Title   string `form:"title" binding:"required"`
-		Caption string `form:"caption" binding:"required"`
-	}
+	var body PhotoBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to read body",
+		})
+
+		return
+	}
+
+	errValidation := initializers.Validate.Struct(body)
+	if errValidation != nil {
+		var validError []string
+		for _, err := range errValidation.(validator.ValidationErrors) {
+			validError = append(validError, err.Error())
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": validError,
 		})
 
 		return
@@ -119,14 +135,24 @@ func PhotoEdit(c *gin.Context) {
 		return
 	}
 
-	var body struct {
-		Title   string `form:"title"`
-		Caption string `form:"caption"`
-	}
+	var body PhotoBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Can not read body",
+		})
+
+		return
+	}
+
+	errValidation := initializers.Validate.Struct(body)
+	if errValidation != nil {
+		var validError []string
+		for _, err := range errValidation.(validator.ValidationErrors) {
+			validError = append(validError, err.Error())
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": validError,
 		})
 
 		return
@@ -169,6 +195,9 @@ func PhotoChange(c *gin.Context) {
 		return
 	}
 
+	// Change old file name
+	os.Rename(photo.PhotoUrl, photo.PhotoUrl+"(old)")
+
 	initializers.DB.Model(&photo).Update("photo_url", photoUrl)
 
 	if err := c.SaveUploadedFile(file, photoUrl); err != nil {
@@ -177,9 +206,6 @@ func PhotoChange(c *gin.Context) {
 		})
 		return
 	}
-
-	// Change old file name
-	os.Rename(photo.PhotoUrl, photo.PhotoUrl+"(old)")
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": photo,

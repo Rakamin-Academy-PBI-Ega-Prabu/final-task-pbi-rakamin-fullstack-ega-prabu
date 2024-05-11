@@ -5,8 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/asaskevich/govalidator"
+	"github.com/go-playground/validator/v10"
 )
+
+var Validate *validator.Validate
 
 func InitializeApp() {
 	// New random seed
@@ -20,8 +22,8 @@ func InitializeApp() {
 
 	}
 
-	// Set field required by default
-	govalidator.SetFieldsRequiredByDefault(true)
+	// use a single instance of Validate, it caches struct info
+	Validate = validator.New(validator.WithRequiredStructEnabled())
 
 	// Load .env varibles
 	LoadEnvVariables()

@@ -8,8 +8,8 @@ import (
 	"userapp/initializers"
 	"userapp/models"
 
-	"github.com/asaskevich/govalidator"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -45,11 +45,13 @@ func UserGet(c *gin.Context) {
 }
 
 func UserSignUp(c *gin.Context) {
-	var body struct {
-		Username string `valid:"stringlength(4|24)"`
-		Password string `valid:"stringlength(8|24)"`
-		Email    string `valid:"email"`
+	type UserBody struct {
+		Username string `form:"username" validate:"required,alphanum,min=4,max=24"`
+		Password string `form:"password" validate:"required,min=8,max=24"`
+		Email    string `form:"email" validate:"required,email"`
 	}
+
+	var body UserBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -59,11 +61,16 @@ func UserSignUp(c *gin.Context) {
 		return
 	}
 
-	_, errBody := govalidator.ValidateStruct(body)
-	if errBody != nil {
+	errValidation := initializers.Validate.Struct(body)
+	if errValidation != nil {
+		var validError []string
+		for _, err := range errValidation.(validator.ValidationErrors) {
+			validError = append(validError, err.Error())
+		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "error: " + errBody.Error(),
+			"error": validError,
 		})
+
 		return
 	}
 
@@ -89,14 +96,16 @@ func UserSignUp(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, user)
 }
 
 func UserLogin(c *gin.Context) {
-	var body struct {
-		Username string `valid:"type(string)"`
-		Password string `valid:"type(string)"`
+	type UserLogin struct {
+		Username string `form:"username" validate:"required"`
+		Password string `form:"password" validate:"required"`
 	}
+
+	var body UserLogin
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -106,11 +115,16 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	_, errBody := govalidator.ValidateStruct(body)
-	if errBody != nil {
+	errValidation := initializers.Validate.Struct(body)
+	if errValidation != nil {
+		var validError []string
+		for _, err := range errValidation.(validator.ValidationErrors) {
+			validError = append(validError, err.Error())
+		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "error: " + errBody.Error(),
+			"error": validError,
 		})
+
 		return
 	}
 
@@ -166,9 +180,11 @@ func UserEdit(c *gin.Context) {
 		return
 	}
 
-	var body struct {
-		Email string `valid:"email"`
+	type EmailBody struct {
+		Email string `form:"email" validate:"required,email"`
 	}
+
+	var body EmailBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -177,11 +193,16 @@ func UserEdit(c *gin.Context) {
 		return
 	}
 
-	_, errBody := govalidator.ValidateStruct(body)
-	if errBody != nil {
+	errValidation := initializers.Validate.Struct(body)
+	if errValidation != nil {
+		var validError []string
+		for _, err := range errValidation.(validator.ValidationErrors) {
+			validError = append(validError, err.Error())
+		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "error: " + errBody.Error(),
+			"error": validError,
 		})
+
 		return
 	}
 
@@ -208,10 +229,12 @@ func UserChangePassword(c *gin.Context) {
 		return
 	}
 
-	var body struct {
-		Password    string `valid:"type(string)"`
-		NewPassword string `valid:"type(string),stringlength(8|24)"`
+	type PasswordBody struct {
+		Password    string `form:"password" validate:"required"`
+		NewPassword string `form:"newpassword" validate:"required,min=8,max=24"`
 	}
+
+	var body PasswordBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -220,11 +243,16 @@ func UserChangePassword(c *gin.Context) {
 		return
 	}
 
-	_, errBody := govalidator.ValidateStruct(body)
-	if errBody != nil {
+	errValidation := initializers.Validate.Struct(body)
+	if errValidation != nil {
+		var validError []string
+		for _, err := range errValidation.(validator.ValidationErrors) {
+			validError = append(validError, err.Error())
+		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "error: " + errBody.Error(),
+			"error": validError,
 		})
+
 		return
 	}
 
@@ -238,7 +266,7 @@ func UserChangePassword(c *gin.Context) {
 		return
 	}
 
-	hash, errComp := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	hash, errComp := bcrypt.GenerateFromPassword([]byte(body.NewPassword), 10)
 
 	if errComp != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
